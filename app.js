@@ -1,22 +1,25 @@
 var express = require('express');
 var request = require('request');
 var convert = require('xml-js');
+var parse = require("csv-parse/lib/sync");
+var fs = require("fs");
+
+const csv = fs.readFileSync("final.csv");
+const records = parse(csv.toString());
 
 var app = express();
 app.set('port', process.env.PORT || 3000);
 
 // 역 상세 정보 (역 이름을 파라미터로 쏴줘야 함. 예를 들어 localhost:3000/station?name=광나루)
-app.get('/station1', (req, res) => {    
+app.get('/station1', (req, res) => {
     var search = req.query.name;
     
-    var url = 'http://openapi.tago.go.kr/openapi/service/SubwayInfoService/getKwrdFndSubwaySttnList';
-    var queryParams = '?' + encodeURIComponent('ServiceKey') + '=h0TLLT%2BzNKA6vVq82NFjZwOnmJrhX4dfX9f5D%2FVHKpxu16En%2FjqjYBoLNaIYL3cvIhIJBnv3vansVFO3MDJ4mg%3D%3D'; /* Service Key*/
-    queryParams += '&' + encodeURIComponent('subwayStationName') + '=' + encodeURIComponent(search);
-
-    request({
-        url: url + queryParams,
+    const option = {
+        url : 'http://openapi.tago.go.kr/openapi/service/SubwayInfoService/getKwrdFndSubwaySttnList' + '?' + encodeURIComponent('ServiceKey') + '=h0TLLT%2BzNKA6vVq82NFjZwOnmJrhX4dfX9f5D%2FVHKpxu16En%2FjqjYBoLNaIYL3cvIhIJBnv3vansVFO3MDJ4mg%3D%3D'+ '&' + encodeURIComponent('subwayStationName') + '=' + encodeURIComponent(search),
         method: 'GET'
-    }, function (error, response, body) {
+    };
+
+    request(option, function (error, response, body) {
         var xml2json = convert.xml2json(body, {compact: true, spaces: 4});
         var info = JSON.parse(xml2json);
 
@@ -33,24 +36,25 @@ app.get('/station1', (req, res) => {
             var subwayStationId = info.response.body.items.item[0].subwayStationId._text
             var subwayStationName = info.response.body.items.item[0].subwayStationName._text
         }
-
-        answer = {
-            "호선" : subwayRouteName,
-            "역 코드" : subwayStationId,
-            "역 이름" : subwayStationName,
+        const answer = {
+            subwayRouteName,
+            subwayStationId,
+            subwayStationName,
+            toilet : null
         }
-
+        for (const i in records){
+            if (records[i][1].includes(search)) {
+                answer.toilet = records[i][2];
+                break;
+            }
+        }
+        
         res.json(answer);
     });
 });
 
-// 역 도착 시간 정보 (서버 오류로 아직 구현 못함)
+// 역 도착 시간 정보 (지금 새벽이라 구현 못함)
 app.get('/station2', (req, res) => {    
-    
-});
-
-// 역 화장실 정보 (통합 csv 파일 필요)
-app.get('/station3', (req, res) => {    
     
 });
 
